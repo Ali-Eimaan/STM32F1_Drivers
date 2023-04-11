@@ -10,27 +10,74 @@ static void USART_set_baudrate(USART_TypeDef *USARTx, uint32_t PeriphClk, uint32
     USARTx->BRR = compute_baud_rate(PeriphClk, BaudRate);
 }
 
-USART_StatusTypedef USART_Init(USART_TypeDef *USARTx, USART_ParamsTypedef USART_Params, uint32_t Baud_Rate)
+USART_StatusTypedef USART_Init(USART_TypeDef *USARTx, USART_ParamsTypedef USART_Params, uint32_t Baud_Rate, REMAP_Type remap)
 {
-    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
-
-    SetPinMode(GPIOA, PORTA, PIN9, OutputMode50MHz, AlternateFunctionOpenDrain);
-    SetPinMode(GPIOA, PORTA, PIN10, InputMode, FloatingInput);
+    if (USARTx == USART1)
+    {
+        RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+        if (remap)
+        {
+            SetPinMode(GPIOB, PORTB, PIN6, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOB, PORTB, PIN7, InputMode, FloatingInput);
+        }
+        else
+        {
+            SetPinMode(GPIOA, PORTA, PIN9, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOA, PORTA, PIN10, InputMode, FloatingInput);
+        }
+    }
+    else if (USARTx == USART2)
+    {
+        RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
+        if (remap)
+        {
+            SetPinMode(GPIOD, PORTD, PIN5, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOD, PORTD, PIN6, InputMode, FloatingInput);
+        }
+        else
+        {
+            SetPinMode(GPIOA, PORTA, PIN2, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOA, PORTA, PIN3, InputMode, FloatingInput);
+        }
+    }
+    else if (USARTx == USART3)
+    {
+        RCC->APB1ENR |= RCC_APB1ENR_USART3EN;
+        if (remap == NoRemap)
+        {
+            SetPinMode(GPIOB, PORTB, PIN10, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOB, PORTB, PIN11, InputMode, FloatingInput);
+        }
+        else if (remap == PartialRemap)
+        {
+            SetPinMode(GPIOC, PORTC, PIN10, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOC, PORTC, PIN11, InputMode, FloatingInput);
+        }
+        else if (remap == FullRemap)
+        {
+            SetPinMode(GPIOD, PORTD, PIN8, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOD, PORTD, PIN9, InputMode, FloatingInput);
+        }
+    }
 
     USART_set_baudrate(USARTx, APB2_CLK, Baud_Rate);
 
     Set_USART_Params(USARTx, USART_Params);
 
     if ((USARTx->CR1 & USART_CR1_IDLEIE) || (USARTx->CR1 & USART_CR1_RXNEIE) || (USARTx->CR1 & USART_CR1_TCIE) || (USARTx->CR1 & USART_CR1_TXEIE) || (USARTx->CR1 & USART_CR1_PEIE))
+    {
         if (USARTx == USART1)
             NVIC_EnableIRQ(USART1_IRQn);
         else if (USARTx == USART2)
             NVIC_EnableIRQ(USART2_IRQn);
+        else if (USARTx == USART3)
+            NVIC_EnableIRQ(USART3_IRQn);
+    }
 
     USARTx->CR1 = (USART_CR1_TE | USART_CR1_RE);
     USARTx->CR1 |= USART_CR1_UE;
 
-    return Read_USART_Status(USARTx);
+    return (Read_USART_Status(USARTx));
 }
 
 void USART_write(USART_TypeDef *USARTx, int ch)
@@ -54,11 +101,11 @@ char USART_read(USART_TypeDef *USARTx)
 USART_StatusTypedef USART_Write_Buff(USART_TypeDef *USARTx, uint8_t *Buff, uint16_t len)
 {
     for (int i = 0; i < len; i++)
-        USART_write(USARTx, (uint8_t*) Buff[i]);
+        USART_write(USARTx, Buff[i]);
     return Read_USART_Status(USARTx);
 }
 
-USART_StatusTypedef USART_Write_Buff(USART_TypeDef *USARTx, uint8_t *Buff, uint16_t len)
+USART_StatusTypedef USART_Read_Buff(USART_TypeDef *USARTx, uint8_t *Buff, uint16_t len)
 {
     for (int i = 0; i < len; i++)
         Buff[i] = USART_read(USARTx);

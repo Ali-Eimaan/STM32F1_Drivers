@@ -55,16 +55,17 @@ typedef struct
     uint8_t CTS_Interrupt_Enable;
 }USART_ParamsTypedef;
 
-USART_StatusTypedef USART_Init(USART_TypeDef *USARTx, USART_ParamsTypedef USART_Params, uint32_t Baud_Rate);
+USART_StatusTypedef USART_Init(USART_TypeDef *USARTx, USART_ParamsTypedef USART_Params, uint32_t Baud_Rate, REMAP_Type remap);
 void Set_USART_Params(USART_TypeDef *USARTx, USART_ParamsTypedef USART_Params);
 void USART_write(USART_TypeDef *USARTx, int ch);
 char USART_read(USART_TypeDef *USARTx);
 static uint16_t compute_baud_rate(uint32_t PeriphClk, uint32_t BaudRate);
 static void USART_set_baudrate(USART_TypeDef *USARTx, uint32_t PeriphClk, uint32_t BaudRate);
 void Set_CR1(USART_TypeDef *USARTx, USART_ParamsTypedef USART_Params);
-void Set_CR1(USART_TypeDef *USARTx, USART_ParamsTypedef USART_Params);
-void Set_CR1(USART_TypeDef *USARTx, USART_ParamsTypedef USART_Params);
+void Set_CR2(USART_TypeDef *USARTx, USART_ParamsTypedef USART_Params);
+void Set_CR3(USART_TypeDef *USARTx, USART_ParamsTypedef USART_Params);
 USART_StatusTypedef USART_Write_Buff(USART_TypeDef *USARTx, uint8_t *Buff, uint16_t len);
 USART_StatusTypedef USART_Read_Buff(USART_TypeDef *USARTx, uint8_t *Buff, uint16_t len);
+USART_StatusTypedef Read_USART_Status(USART_TypeDef *USARTx);
 
 #endif
