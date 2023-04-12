@@ -1,238 +1,275 @@
 #include "I2C.h"
 
-void I2C1_init(void)
+void I2C_init(I2C_TypeDef *I2Cx, RemapEnable_Type remap, uint32_t Clock)
 {
-    RCC->APB2ENR |= GPIOBEN;
-    RCC->APB1ENR |= I2C1EN;
+    if (I2Cx == I2C1)
+    {
+        RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
+        if (remap)
+        {
+            SetPinMode(GPIOB, PORTB, PIN6, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOB, PORTB, PIN7, OutputMode50MHz, AlternateFunctionOpenDrain);
+        }
+        else
+        {
+            SetPinMode(GPIOB, PORTB, PIN8, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOB, PORTB, PIN9, OutputMode50MHz, AlternateFunctionOpenDrain);
+        }
+    }
 
-    GPIOB->CRL |= PB6SCL;
-    GPIOB->CRL |= PB7SDA;
+    if (I2Cx == I2C2)
+    {
+        RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
 
-    I2C1->CR1 |= I2CSWRST;
-    I2C1->CR1 &= ~I2CSWRST;
-    I2C1->CR2 |= I2CFREQ;
-    I2C1->CCR = I2C100kHz;
-    I2C1->TRISE = I2CTRISE;
-    I2C1->CR1 |= I2CPE;
+        SetPinMode(GPIOB, PORTB, PIN10, OutputMode50MHz, AlternateFunctionOpenDrain);
+        SetPinMode(GPIOB, PORTB, PIN11, OutputMode50MHz, AlternateFunctionOpenDrain);
+    }
+    
+    I2Cx->CR1 |= I2C_CR1_SWRST;
+    I2Cx->CR1 &= ~I2C_CR1_SWRST;
+    I2Cx->CR2 |= I2C_CR2_FREQ_3;
+    I2Cx->CCR = Clock;
+    I2Cx->TRISE = I2CTRISE;
+    I2Cx->CR1 |= I2C_CR1_PE;
 }
 
-void I2C1_Slave_init_Interrupt(void)
+void I2C_Slave_init_Interrupt(I2C_TypeDef *I2Cx, RemapEnable_Type remap, uint32_t Clock)
 {
-    RCC->APB2ENR |= GPIOBEN;
-    RCC->APB1ENR |= I2C1EN;
+    if (I2Cx == I2C1)
+    {
+        RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
+        if (remap)
+        {
+            SetPinMode(GPIOB, PORTB, PIN6, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOB, PORTB, PIN7, OutputMode50MHz, AlternateFunctionOpenDrain);
+        }
+        else
+        {
+            SetPinMode(GPIOB, PORTB, PIN8, OutputMode50MHz, AlternateFunctionOpenDrain);
+            SetPinMode(GPIOB, PORTB, PIN9, OutputMode50MHz, AlternateFunctionOpenDrain);
+        }
+    }
 
-    GPIOB->CRL |= PB6SCL;
-    GPIOB->CRL |= PB7SDA;
+    if (I2Cx == I2C2)
+    {
+        RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
 
-    I2C1->CR1 |= I2CSWRST;
-    I2C1->CR1 &= ~I2CSWRST;
-    I2C1->CR2 |= I2CFREQ;
-    I2C1->CR2 |= ITEVTEN;
+        SetPinMode(GPIOB, PORTB, PIN10, OutputMode50MHz, AlternateFunctionOpenDrain);
+        SetPinMode(GPIOB, PORTB, PIN11, OutputMode50MHz, AlternateFunctionOpenDrain);
+    }
 
-    I2C1->OVR1 |= SLAVEADDR;
-    I2C1->CCR = I2C100kHz;
-    I2C1->TRISE = I2CTRISE;
-    I2C1->CR1 |= I2CPE;
+    I2Cx->CR1 |= I2C_CR1_SWRST;
+    I2Cx->CR1 &= ~I2C_CR1_SWRST;
+    I2Cx->CR2 |= I2C_CR2_FREQ_3;
+    I2Cx->CR2 |= I2C_CR2_ITEVTEN;
 
-    NVIC_EnableIRQ(I2C1_EV);
+    I2Cx->OAR1 |= I2CSLAVEADDR;
+    I2Cx->CCR = Clock;
+    I2Cx->TRISE = I2CTRISE;
+    I2Cx->CR1 |= I2C_CR1_PE;
+
+    if (I2Cx == I2C1)
+        NVIC_EnableIRQ(I2C1_EV_IRQn);
+    if (I2Cx == I2C2)
+        NVIC_EnableIRQ(I2C2_EV_IRQn);
 }
 
-void I2C_addrbyteread(char saddr, char maddr, char* data)
+void I2C_addrbyteread(I2C_TypeDef *I2Cx, char saddr, char maddr, char* data)
 {
     volatile int tmp;
-    while(I2C1->SR2 & I2CBUSY);
+    while(I2Cx->SR2 & I2C_SR2_BUSY);
 
-    I2C1->CR1 |= I2CSTART;
-    while(!(I2C1->SR1 & I2CSB));
+    I2Cx->CR1 |= I2C_CR1_START;
+    while(!(I2Cx->SR1 & I2C_SR1_SB));
 
-    I2C1->DR = saddr << 1;
-    while(!(I2C1->SR1 & I2CSRADDR));
+    I2Cx->DR = saddr << 1;
+    while(!(I2Cx->SR1 & I2C_SR1_ADDR));
 
-    tmp = I2C1->SR2;
-    while(!(I2C1->SR1 & I2CTXE));
+    tmp = I2Cx->SR2;
+    while(!(I2Cx->SR1 & I2C_SR1_TXE));
 
-    I2C1->DR = maddr;
-    while(!(I2C1->SR1 & I2CTXE));
+    I2Cx->DR = maddr;
+    while(!(I2Cx->SR1 & I2C_SR1_TXE));
 
-    I2C1->CR1 |= I2CSTART;
-    while(!(I2C1->SR1 & I2CSB));
+    I2Cx->CR1 |= I2C_CR1_START;
+    while(!(I2Cx->SR1 & I2C_SR1_SB));
 
-    I2C1->DR = saddr << 1 | 1;
-    while(!(I2C1->SR1 & I2CSRADDR));
+    I2Cx->DR = saddr << 1 | 1;
+    while(!(I2Cx->SR1 & I2C_SR1_ADDR));
 
-    tmp = I2C1->SR2;
-    I2C1->CR1 &= ~I2CACK;
-    I2C1->CR1 |= I2CSTOP;
+    tmp = I2Cx->SR2;
+    I2Cx->CR1 &= ~I2C_CR1_ACK;
+    I2Cx->CR1 |= I2C_CR1_STOP;
 
-    while(!(I2C1->SR1 & I2CRXNE));
-    *data++ = I2C1->DR;
+    while(!(I2Cx->SR1 & I2C_SR1_RXNE));
+    *data++ = I2Cx->DR;
 }
 
-void I2C1_burstRead(char saddr, char maddr, int n, char* data)
+void I2C_burstRead(I2C_TypeDef *I2Cx, char saddr, char maddr, int n, char* data)
 {
     volatile int tmp;
-    while(I2C1->SR2 & I2CBUSY);
+    while(I2Cx->SR2 & I2C_SR2_BUSY);
 
-    I2C1->CR1 |= I2CSTART;
-    while(!(I2C1->SR1 & I2CSB));
+    I2Cx->CR1 |= I2C_CR1_START;
+    while(!(I2Cx->SR1 & I2C_SR1_SB));
 
-    I2C1->DR = saddr << 1;
-    while(!(I2C1->SR1 & I2CSRADDR));
+    I2Cx->DR = saddr << 1;
+    while(!(I2Cx->SR1 & I2C_SR1_ADDR));
 
-    tmp = I2C1->SR2;
-    while(!(I2C1->SR1 & I2CTXE));
+    tmp = I2Cx->SR2;
+    while(!(I2Cx->SR1 & I2C_SR1_TXE));
 
-    I2C1->DR = maddr;
-    while(!(I2C1->SR1 & I2CTXE));
+    I2Cx->DR = maddr;
+    while(!(I2Cx->SR1 & I2C_SR1_TXE));
 
-    I2C1->CR1 |= I2CSTART;
-    while(!(I2C1->SR1 & I2CSB));
+    I2Cx->CR1 |= I2C_CR1_START;
+    while(!(I2Cx->SR1 & I2C_SR1_SB));
 
-    I2C1->DR = saddr << 1 | 1;
-    while(!(I2C1->SR1 & I2CSRADDR));
+    I2Cx->DR = saddr << 1 | 1;
+    while(!(I2Cx->SR1 & I2C_SR1_ADDR));
 
-    tmp = I2C1->SR2;
-    I2C1->CR1 |= I2CACK;
+    tmp = I2Cx->SR2;
+    I2Cx->CR1 |= I2C_CR1_ACK;
 
     while(n > 0U)
     {
         if(n == 1)
         {
-            I2C1->CR1 &= ~I2CACK;
-            I2C1->CR1 |= I2CSTOP;
+            I2Cx->CR1 &= ~I2C_CR1_ACK;
+            I2Cx->CR1 |= I2C_CR1_STOP;
 
-            while(!(I2C1->SR1 & I2CRXNE));
-            *data++ = I2C1->DR;
+            while(!(I2Cx->SR1 & I2C_SR1_RXNE));
+            *data++ = I2Cx->DR;
             break;
         }
         else
         {
-            while(!(I2C1->SR1 & I2CRXNE));
-            *data++ = I2C1->DR;
+            while(!(I2Cx->SR1 & I2C_SR1_RXNE));
+            *data++ = I2Cx->DR;
             n--;
         }
     }
 }
 
-void I2C1_burstWrite(char saddr, char maddr, int n, char* data)
+void I2C_burstWrite(I2C_TypeDef *I2Cx, char saddr, char maddr, int n, char* data)
 {
     volatile int tmp;
-    while(I2C1->SR2 & I2CBUSY);
+    while(I2Cx->SR2 & I2C_SR2_BUSY);
 
-    I2C1->CR1 |= I2CSTART;
-    while(!(I2C1->SR1 & I2CSB));
+    I2Cx->CR1 |= I2C_CR1_START;
+    while(!(I2Cx->SR1 & I2C_SR1_SB));
 
-    I2C1->DR = saddr << 1;
-    while(!(I2C1->SR1 & I2CSRADDR));
+    I2Cx->DR = saddr << 1;
+    while(!(I2Cx->SR1 & I2C_SR1_ADDR));
 
-    tmp = I2C1->SR2;
-    while(!(I2C1->SR1 & I2CTXE));
+    tmp = I2Cx->SR2;
+    while(!(I2Cx->SR1 & I2C_SR1_TXE));
 
-    I2C1->DR = maddr;
+    I2Cx->DR = maddr;
     for (int i = 0; i < n; i++)
     {
-        while(!(I2C1->SR1 & I2CTXE));
-        I2C1->DR = *data++;
+        while(!(I2Cx->SR1 & I2C_SR1_TXE));
+        I2Cx->DR = *data++;
     }
-    while(!(I2C1->SR1 & I2CBTF));
-    I2C1->CR1 |= I2CSTOP;
+    while(!(I2Cx->SR1 & I2C_SR1_BTF));
+    I2Cx->CR1 |= I2C_CR1_STOP;
 }
 
-void I2C1_Write(char saddr, int n, char* data)
+void I2C_Write(I2C_TypeDef *I2Cx, char saddr, int n, char* data)
 {
     volatile int tmp;
-    while(I2C1->SR2 & I2CBUSY);
+    while(I2Cx->SR2 & I2C_SR2_BUSY);
 
-    I2C1->CR1 |= I2CSTART;
-    while(!(I2C1->SR1 & I2CSB));
+    I2Cx->CR1 |= I2C_CR1_START;
+    while(!(I2Cx->SR1 & I2C_SR1_SB));
 
-    I2C1->DR = saddr << 1;
-    while(!(I2C1->SR1 & I2CSRADDR));
+    I2Cx->DR = saddr << 1;
+    while(!(I2Cx->SR1 & I2C_SR1_ADDR));
 
-    tmp = I2C1->SR2;
-    while(!(I2C1->SR1 & I2CTXE));
+    tmp = I2Cx->SR2;
+    while(!(I2Cx->SR1 & I2C_SR1_TXE));
 
     for (int i = 0; i < n; i++)
     {
-        while(!(I2C1->SR1 & I2CTXE));
-        I2C1->DR = *data++;
+        while(!(I2Cx->SR1 & I2C_SR1_TXE));
+        I2Cx->DR = *data++;
     }
-    while(!(I2C1->SR1 & I2CBTF));
-    I2C1->CR1 |= I2CSTOP;
+    while(!(I2Cx->SR1 & I2C_SR1_BTF));
+    I2Cx->CR1 |= I2C_CR1_STOP;
 }
 
-void I2C1_Read(char saddr, int n, char* data)
+void I2C_Read(I2C_TypeDef *I2Cx, char saddr, int n, char* data)
 {
     volatile int tmp;
-    while(I2C1->SR2 & I2CBUSY);
+    while(I2Cx->SR2 & I2C_SR2_BUSY);
 
-    I2C1->CR1 |= I2CSTART;
-    while(!(I2C1->SR1 & I2CSB));
+    I2Cx->CR1 |= I2C_CR1_START;
+    while(!(I2Cx->SR1 & I2C_SR1_SB));
 
-    I2C1->DR = saddr << 1 | 1;
-    while(!(I2C1->SR1 & I2CSRADDR));
+    I2Cx->DR = saddr << 1 | 1;
+    while(!(I2Cx->SR1 & I2C_SR1_ADDR));
 
-    tmp = I2C1->SR2;
-    I2C1->CR1 |= I2CACK;
+    tmp = I2Cx->SR2;
+    I2Cx->CR1 |= I2C_CR1_ACK;
 
     while(n > 0U)
     {
         if(n == 1)
         {
-            I2C1->CR1 &= ~I2CACK;
-            I2C1->CR1 |= I2CSTOP;
+            I2Cx->CR1 &= ~I2C_CR1_ACK;
+            I2Cx->CR1 |= I2C_CR1_STOP;
 
-            while(!(I2C1->SR1 & I2CRXNE));
-            *data++ = I2C1->DR;
+            while(!(I2Cx->SR1 & I2C_SR1_RXNE));
+            *data++ = I2Cx->DR;
             break;
         }
         else
         {
-            while(!(I2C1->SR1 & I2CRXNE));
-            *data++ = I2C1->DR;
+            while(!(I2Cx->SR1 & I2C_SR1_RXNE));
+            *data++ = I2Cx->DR;
             n--;
         }
     }
 }
 
-void I2C1_SLave_Write(char saddr, int n, char* data)
+void I2C_Slave_Write(I2C_TypeDef *I2Cx, int n, char* data)
 {
     volatile int tmp;
-    while(I2C1->SR2 & I2CBUSY);
+    while(I2Cx->SR2 & I2C_SR2_BUSY);
 
-    I2C1->CR1 |= I2CACK;
+    I2Cx->CR1 |= I2C_CR1_ACK;
 
     for (int i = 0; i < n; i++)
     {
-        while(!(I2C1->SR1 & I2CTXE));
-        I2C1->DR = *data++;
+        while(!(I2Cx->SR1 & I2C_SR1_TXE));
+        I2Cx->DR = *data++;
     }
-    while(!(I2C1->SR1 & I2CBTF));
-    I2C1->CR1 |= I2CSTOP;
+    while(!(I2Cx->SR1 & I2C_SR1_BTF));
+    I2Cx->CR1 |= I2C_CR1_STOP;
 }
 
-void I2C1_Slave_Read(int n, char* data)
+void I2C_Slave_Read(I2C_TypeDef *I2Cx, int n, char* data)
 {
     volatile int tmp;
-    while(I2C1->SR2 & I2CBUSY);
+    while(I2Cx->SR2 & I2C_SR2_BUSY);
 
-    I2C1->CR1 |= I2CACK;
+    I2Cx->CR1 |= I2C_CR1_ACK;
 
     while(n > 0U)
     {
         if(n == 1)
         {
-            I2C1->CR1 &= ~I2CACK;
-            I2C1->CR1 |= I2CSTOP;
+            I2Cx->CR1 &= ~I2C_CR1_ACK;
+            I2Cx->CR1 |= I2C_CR1_STOP;
 
-            while(!(I2C1->SR1 & I2CRXNE));
-            *data++ = I2C1->DR;
+            while(!(I2Cx->SR1 & I2C_SR1_RXNE));
+            *data++ = I2Cx->DR;
             break;
         }
         else
         {
-            while(!(I2C1->SR1 & I2CRXNE));
-            *data++ = I2C1->DR;
+            while(!(I2Cx->SR1 & I2C_SR1_RXNE));
+            *data++ = I2Cx->DR;
             n--;
         }
     }
